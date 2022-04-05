@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>mainWindow</class>
+ <widget class="QWidget" name="mainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>680</width>
+    <height>460</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Content Based Image Retrieval</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">font: &quot;Arial&quot;;
+font: 10pt &quot;MS Shell Dlg 2&quot;;
+color: #2F4858;
+background-color: #FFFFFF;</string>
+  </property>
+  <widget class="QWidget" name="gridLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>60</y>
+     <width>291</width>
+     <height>301</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridLeft">
+    <item row="0" column="0">
+     <widget class="QLabel" name="imgPreview">
+      <property name="styleSheet">
+       <string notr="true">background-color: #DDDDDD;</string>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QWidget" name="gridLayoutWidget_2">
+   <property name="geometry">
+    <rect>
+     <x>360</x>
+     <y>60</y>
+     <width>291</width>
+     <height>301</height>
+    </rect>
+   </property>
+   <layout class="QGridLayout" name="gridRight">
+    <item row="0" column="0">
+     <widget class="QLabel" name="imgResult">
+      <property name="styleSheet">
+       <string notr="true">background-color: #DDDDDD;</string>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QPushButton" name="browse">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>390</y>
+     <width>291</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color: white;
+font-weight: bold;
+font-size: 18px;
+border-radius: 10px;
+background-color: #FF6A38;
+box-shadow: 0 2px 5px 0 rgba(213,217,217,.5);</string>
+   </property>
+   <property name="text">
+    <string>Upload Image</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="generateBarcodes">
+   <property name="geometry">
+    <rect>
+     <x>360</x>
+     <y>390</y>
+     <width>291</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">color: white;
+font-weight: bold;
+font-size: 18px;
+border-radius: 10px;
+background-color: #003C72;
+box-shadow: 0 2px 5px 0 rgba(213,217,217,.5);</string>
+   </property>
+   <property name="text">
+    <string>Generate Barcode File</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

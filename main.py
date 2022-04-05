@@ -1,124 +1,142 @@
 import sys
 import os
+import os.path
+import csv
+import pandas as pd
+import numpy as np
+import time
 
-from PyQt5 import QtWidgets, QtGui, uic
+from PIL import Image
+from PyQt5 import QtWidgets, uic
+from PyQt5.QtWidgets import QApplication, QDialog, QFileDialog
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QDialog, QApplication, QFileDialog
 from PyQt5.uic import loadUi
 
-import numpy as np
-from PIL import Image
 
-
-class MainMenu(QDialog):
+class MainWindow(QDialog):
     def __init__(self):
-        super().__init__()
+        super(MainWindow, self).__init__()
         self.fileName = None
-        loadUi("MainMenu.ui", self)
-        self.imgUpload.clicked.connect(self.uploadImage)
-        self.searchBtn.clicked.connect(self.searchImage)
-
-    def uploadImage(self):
-        self.fileName = QFileDialog.getOpenFileName(self.imgUpload, 'Open File', "/usr/tmp", "Images (*.png *.jpg *.jpeg)")
-        self.imgPreview.setPixmap(QPixmap(self.fileName[0]))
-
-    def searchImage(self):
-        print(self.fileName)
-        resultsPage = ResultsPage(self.fileName[0])
-        widget.addWidget(resultsPage)
-        widget.setCurrentIndex(widget.currentIndex()+1)
+        loadUi("mainWindow.ui", self)
+        self.browse.clicked.connect(self.browseFiles)  # Calls the 'browseFiles' method when the 'browse' button is clicked
+        self.generateBarcodes.clicked.connect(self.createBarcodeFile)  # Calls the 'createBarcodeFile' method when the 'Generate Barcode File' button is clicked
 
 
-class ResultsPage(QDialog):
-    def __init__(self, filePath):
-        super().__init__()
-        loadUi("ResultsPage.ui", self)
-        self.filePath = filePath
-        self.searchAlgorithm()
+    def browseFiles(self):
+        self.fileName = QFileDialog.getOpenFileName(self.browse, 'Open File', "/usr/MNIST_DS", "Images (*.png *.jpg *.jpeg *.bmp)")  # opens file browser at specified location setting the file types to images only
+        self.imgPreview.setPixmap(QPixmap(self.fileName[0]))  # uploads the image to be viewed in the GUI
+        self.imgPreview.setScaledContents(True)  # scales the uploaded image to fit the contents of the pre-defined box
+        imageToSearchPath = self.fileName[0]
 
-    def searchAlgorithm(self):
-        searchBarcode = self.generateBarcode(self.filePath)
-        hammingDist = 100000
-        closestMatch = ""
+        self.imgResult.setPixmap(QPixmap(retrieveImage(generateBarcode(self.fileName[0]))))  # uploads the image to be viewed in the GUI
+        self.imgResult.setScaledContents(True)  # scales the uploaded image to fit the contents of the pre-defined box
 
-        cwd = os.getcwd()
-        MNIST_path = os.path.join(cwd, 'MNIST_DS')
-        classes = os.listdir(MNIST_path)
-        for img_folder in classes:
-            images_path = os.path.join(MNIST_path, img_folder)
-            image_files = os.listdir(images_path)
-            for image in image_files:
-                image_path = os.path.join(images_path, image)
-                print(image_path)
-                currHammingDist = self.hammingDistance(searchBarcode, self.generateBarcode(image_path))
-                if currHammingDist < hammingDist:
-                    hammingDist = currHammingDist
-                    closestMatch = image_path
-        print(closestMatch)
-        self.imgPreview.setPixmap(QPixmap(closestMatch))
-        self.image_path.setText(closestMatch)
+        print("ORIGINAL IMAGE", imageToSearchPath)
 
 
-    def hammingDistance(self, searchBarcode, currentBarcode):
-        hammingDist = 0
-        print(searchBarcode)
-        print(currentBarcode)
-        for i in range(len(searchBarcode)):
-            if searchBarcode[i] != currentBarcode[i]:
-                hammingDist+=1
-        return hammingDist
+    def createBarcodeFile(self):
+        barcodeFile = open("BARCODES.csv", "a", newline='')  # opens a csv file with the name "BARCODES" to be written in later
+        imagePathFile = open("IMAGEPATH.csv", "w+", newline='')  # opens a csv file with the name "IMAGEPATH" to be written in later
+        clearFile("BARCODES.csv")  # clears the file before writing in it
+        clearFile("IMAGEPATH.csv")  # clears the file before writing in it
+        writerB = csv.writer(barcodeFile)  # creates a new csv writer
+        writerI = csv.writer(imagePathFile)  # creates a new csv writer
+        writerB.writerow(generateHeader())  # writes header values
+        writerI.writerow(["File Path"])  # writes header values
+        rootDir = QtWidgets.QFileDialog.getExistingDirectory(None, 'Select Root Folder:', "/usr/", QtWidgets.QFileDialog.ShowDirsOnly)  # opens file browser at specified location setting the selection types to folders only
+        for subdir, dirs, files in os.walk(rootDir):  # walks through all sub-directories within the specified root-directory
+            for file in files:
+                barcodeArray = np.array(generateBarcode(os.path.join(subdir, file)))
+                writerB.writerow(barcodeArray)  # writes the file barcode in the BARCODES.csv file
+                writerI.writerow([os.path.join(subdir, file)]) # writes the file path in the IMAGEPATH.csv file
+        barcodeFile.close()
+        imagePathFile.close()
 
 
+def retrieveImage(originalBarcode):
+    if (os.path.exists('BARCODES.csv') and os.path.exists('IMAGEPATH.csv')):  # if the file is in read mode, then proceed
+        barcodeArr = pd.read_csv("BARCODES.csv").values  # stores the contents of the "BARCODES.csv" file into a 2D array
+        imagePathArr = pd.read_csv("IMAGEPATH.csv").values  # stores the contents of the "IMAGEPATH.csv" file into a 2D array
 
-    def generateBarcode(self, filePath):
-        barcode = []
-        print(filePath)
-        # Proccess image into numpy array
-        image = Image.open(filePath)
-        imgArr = np.asarray(image.convert('L'))
-        flippedImgArr = np.fliplr(imgArr)
+        resultImagePath = searchAlgorithm(barcodeArr, imagePathArr, originalBarcode)
+        print(resultImagePath)
+        return resultImagePath
 
-        diagTopLeftToBtmRight = []
-        diagTopRightToBtmLeft = []
-
-        rowSums = []
-        columnSums = []
-
-        for i in range(-26, 27):
-            diagTopLeftToBtmRight.append(sum(np.diagonal(imgArr, i, 0, 1)))
-            diagTopRightToBtmLeft.append(sum(np.diagonal(flippedImgArr, i, 0, 1)))
-
-        for i in range(27):
-            rowSums.append(sum(imgArr[i, :]))
-            columnSums.append(sum(imgArr[:, i]))
-
-        barcode = self.convertSumsToBarcode(rowSums) + \
-                  self.convertSumsToBarcode(columnSums) + \
-                  self.convertSumsToBarcode(diagTopLeftToBtmRight) + \
-                  self.convertSumsToBarcode(diagTopRightToBtmLeft)
-        return barcode
+    else:  # if the file is not in read mode, the program cannot find the specified file
+        print("Files Not Found")  # output error message
 
 
-    def arrAverage(self, arr):
-        a = np.asarray(arr)
-        return round(a.mean())
+def searchAlgorithm(barcodesArr, imagePathArr, originalBarcode):
+    hammingDist = 1000  # initializes hamming distance variable
+    filePath = ""
+    for i in range(100):
+        currentHammingDist = hammingDistance(barcodesArr[i], originalBarcode)
+        if (currentHammingDist < hammingDist) and (currentHammingDist != 0):
+            hammingDist = currentHammingDist
+            filePath = imagePathArr[i][0]
+    return filePath
 
-    def convertSumsToBarcode(self, arr):
-        c = []
-        avg = self.arrAverage(arr)
-        for item in arr:
-            if item > avg:
-                c.append(1)
-            else:
-                c.append(0)
-        return c
+
+def hammingDistance(currentBarcode, originalBarcode):
+    hammingDist = 0  # initializes the hamming distance
+    for i in range(162):  # loops through all 162 values of the barcode
+        if originalBarcode[i] != currentBarcode[i]:  # if the barcode values are not the same...
+            hammingDist += 1  # increase the hamming distance by 1
+    return hammingDist  # return the hamming distance
+
+
+def clearFile(path):
+    with open(path, 'r+') as f:  # opens the file as read type, and truncates all values
+        f.truncate(0)  # clears file completely
+
+
+def generateHeader():
+    header=[]
+    for i in range(162):
+        header.append(i)
+    return header
+
+
+def generateBarcode(imagePath):  # returns generated barcodes for each picture's file path that is passed
+    image = Image.open(imagePath)  # opens the image at specified path and allows for conversion to numpy array
+    imgArr = np.asarray(image.convert('L'))  # the image conver mode 'L' will only store luminance values or otherwise, greyscale
+
+    sumOne = np.sum(imgArr, axis=1)  # computes the projection with projection angle set to 0 [Left --> Right]
+    sumThree = np.sum(imgArr, axis=0)  # computes the projection with projection angle set to 90 [Top --> Down]
+    sumTwo = [np.trace(imgArr, offset=i) for i in range(-np.shape(imgArr)[0] + 2, np.shape(imgArr)[1] - 1)]  # computes the projection with projection angle set to 45 [Top Left --> Bottom Right]
+    sumFour = [np.trace(np.fliplr(imgArr), offset=i) for i in range(np.shape(imgArr)[1] - 2, -np.shape(imgArr)[0] + 1, -1)]  # computes the projection with projection angle set to 135 [Top Right --> Bottom Left]
+
+    barcode = (convertSumsToBarcode(sumOne)+convertSumsToBarcode(sumTwo)+convertSumsToBarcode(sumThree)+convertSumsToBarcode(sumFour))  # concatenates all the barcodes into a single array
+    return barcode
+
+
+def convertSumsToBarcode(arr):
+    c = []
+    avg = round(np.asarray(arr).mean())
+    for value in arr:
+        if value > avg:
+            c.append(1)
+        else:
+            c.append(0)
+    return c
+
+
+# CHANGE ROOT OF YOUR MINST_DS FOLDER
+rootDir = "C:\Ontario Tech ~ Second Year\Data Structures\Final Project\Content-Based-Image-Retrieval\MNIST_DS"
+for subdir, dirs, files in os.walk(rootDir):
+    for file in files:
+        imageToSearchPath = os.path.join(subdir, file)
+        retrieveImage(generateBarcode(imageToSearchPath))
+        print(imageToSearchPath)
+
+
 
 app = QApplication(sys.argv)
-mainWindow = MainMenu()
+mainWindow = MainWindow()
 widget = QtWidgets.QStackedWidget()
 widget.addWidget(mainWindow)
+widget.setFixedWidth(680)
+widget.setFixedHeight(460)
 widget.show()
-widget.setFixedWidth(500)
-widget.setFixedHeight(500)
+sys.exit(app.exec_())
 
-app.exec_()
